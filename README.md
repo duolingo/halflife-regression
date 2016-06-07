@@ -1,6 +1,6 @@
 # Half-Life Regression
 
-Copyright (c) 2016 ([Duolingo, Inc.](https://duolingo.com)) MIT License.
+Copyright (c) 2016 [Duolingo, Inc.](https://duolingo.com) MIT License.
 
 Half-life regression (HLR) is a model for spaced repetition practice, with particular applications to second language acquisition. The model marries psycholinguistic theory with modern machine learning techniques, indirectly estimating the "half-life" of words (and potentially any other item or fact) in a student's long-term memory.
 
@@ -22,11 +22,18 @@ When using this data set and/or software, please cite this publication. A BibTeX
 ```
 
 
+## Software
+
+The file ``experiment.py`` contains a Python implementation of half-life regression, as well as several baseline spaced repetition algorithms used in Section 4.1 of the paper above. It implemented in pure Python, and we recommend using [pypy](http://pypy.org/) on large datasets for efficiency. The software creates the subfolder ``results/`` which contains model predictions on the test set and induced model weights for inspection.
+
+The file ``evaluation.r`` contains an R function, ``sr_evaluate()``, which takes a prediction file from the script above, and implements the three key metrics we use for evaluation: mean absolute error (MAE), area under the ROC curve (AUC), and Spearman correlation for estimated half-life. Significance tests are also included.
+
+
 ## Dataset and Format
 
-The dataset is [available here](https://s3.amazonaws.com/duolingo-papers/publications/settles.acl16.learning_traces.13m.csv.gz) (361 MB).
+The dataset is available here: [settles.acl16.learning_traces.13m.csv.gz](https://s3.amazonaws.com/duolingo-papers/publications/settles.acl16.learning_traces.13m.csv.gz) (361 MB).
 
-The file ``settles.acl16.learning_reaces.13m.csv.gz`` is a gzipped CSV file containing the 13 million Duolingo student learning traces used in our experiments. The columns are as follows:
+This is a gzipped CSV file containing the 13 million Duolingo student learning traces used in our experiments. The columns are as follows:
 
 * ``p_recall`` - proportion of exercises from this lesson/practice where the word/lexeme was correctly recalled
 * ``timestamp`` - UNIX timestamp of the current lesson/practice session
@@ -47,12 +54,6 @@ The ``lexeme_string`` column contains the "lexeme tag" used by the Duolingo syst
 surface-form/lemma<pos>[<modifiers>...]
 ```
 
-Where ``surface-form`` refers to the inflected form seen in (or intended for) the lesson/practice exercise, ``lemma`` is the uninflected root, ``pos`` is the high-level part of speech, and each of the ``modifers`` encode a morphological component specific to the surface form (e.g., tense, gender, person, case, and so on). Some tags contain wildcard components, written ``<*...>``. For example, ``<*sf>`` refers to a "generic" lexeme without any specific surface form (e.g., a lexeme tag that represents _all_ conjugations of a verb: "run," "ran," "running," etc.), or ``<*numb>`` (e.g., both singular and plural forms of a noun: "teacher" and "teachers"). See ``lexeme_reference.txt`` for a reference of pos and modifier components for lexeme tags.
+Where ``surface-form`` refers to the inflected form seen in (or intended for) the exercise, ``lemma`` is the uninflected root, ``pos`` is the high-level part of speech, and each of the ``modifers`` encodes a morphological component specific to the surface form (tense, gender, person, case, etc.).
 
-
-## Software
-
-The file ``experiment.py`` contains a Python implementation of half-life regression, as well as several baseline spaced repetition algorithms used in Section 4.1 of the paper above. It implemented in pure Python, and we recommend using [pypy](http://pypy.org/) on large datasets for efficiency. The software creates the subfolder ``results/`` which contains model predictions on the test set and induced model weights for inspection.
-
-The file ``evaluation.r`` contains an R function, ``sr_evaluate()``, which takes a prediction file from the script above, and implements the three key metrics we use for evaluation: mean absolute error (MAE), area under the ROC curve (AUC), and Spearman correlation for estimated half-life. Significance tests are also included.
-
+Some tags contain wildcard components, written ``<*...>``. For example, ``<*sf>`` refers to a "generic" lexeme without any specific surface form (e.g., a lexeme tag that represents _all_ conjugations of a verb: "run," "ran," "running," etc.), or ``<*numb>`` (e.g., both singular and plural forms of a noun: "teacher" and "teachers"). The file ``lexeme_reference.txt`` contains a reference of pos and modifier components used for lexeme tags.
