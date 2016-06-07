@@ -1,0 +1,92 @@
+aa        animacy       Animate
+acr       adjective     Acronym
+adj       POS           Adjective
+adv       POS           Adverb
+al        other         Other (altre)
+an        animacy       Animate / inanimate
+ant       propernoun    Anthroponym
+apos      other         Apostrophe
+atn       adjective     Atonic
+cm        other         Comma
+cni       tense         Conditional
+cnjadv    POS           Adverbial conjunction
+cnjcoo    POS           Co-ordinating conjunction
+cnjsub    POS           Subordinating conjunction
+cog       propernoun    Cognomen (family name)
+comp      adjective     Comparative
+def       def           Definite
+dem       adjective     Demonstrative
+det       POS           Determiner
+detnt     adjective     Determiner neuter(?)
+email     other         Email
+enc       adjective     Enclitic
+f         gender        Feminine
+fti       tense         Future indicative
+fts       tense         Future subjunctive
+GD        gender        Gender to be determined
+gen       case          Genitive
+ger       tense         Gerund
+guio      other         Hyphen
+ifi       tense         Preterite indicative
+ij        POS           Interjection
+imp       tense         Imperative
+ind       def           Indefinite
+inf       tense         Infinitive
+itg       adjective     Interrogative
+loc       case          Location (not locative!)
+lpar      other         Left parenthesis
+lquest    other         Left question mark
+m         gender        Masculine
+mf        gender        Masculine / feminine
+mon       other         Currency / valuta
+n         POS           Noun
+ND        number        Number to be determined
+nn        animacy       Inanimate
+np        POS           Proper noun
+nt        gender        Neuter
+num       POS           Numeral
+obj       adjective     Object
+ord       adjective     Ordinal
+p1        person        First person
+p2        person        Second person
+p3        person        Third person
+past      tense         Past
+percent   other         Percentage
+pii       tense         Imperfect indicative
+pis       tense         Imperative subjunctive
+pl        number        Plural
+pos       adjective     Possessive
+pp        tense         Past participle
+pprs      tense         Present participle
+pr        POS           Preposition
+preadv    POS           Preadverb
+predet    POS           Pre-determiner
+pres      tense         Present tense (indicative)
+pri       tense         Present indicative
+prn       POS           Pronoun
+pro       adjective     Proclitic
+pron      tense         Pronominal
+prpers    POS           Personal pronoun
+prs       tense         Present subjunctive
+qnt       adjective     Quantifier
+ref       adjective     Reflexive
+rel       adjective     Relative
+rpar      other         Right parenthesis
+sent      POS           Sentence marker
+sep       other         Separable verb
+sg        number        Singular
+sint      adjective     Synthetic
+sp        number        Singular / plural
+subj      adjective     Subject
+subs      tense         Substantive
+sup       adjective     Superlative
+time      other         Time
+tn        adjective     Tonic
+url       other         Web address
+vaux      POS           Auxiliary verb
+vbdo      POS           The verb to do
+vbhaver   POS           Verb to have
+vblex     POS           Verb
+vbmod     POS           Modal verb
+vbser     POS           Verb to be
+web       other         URL address
