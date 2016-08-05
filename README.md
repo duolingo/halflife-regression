@@ -15,6 +15,7 @@ When using this data set and/or software, please cite this publication. A BibTeX
 @inproceedings{settles.acl16,
     Author = {B. Settles and B. Meeder},
     Booktitle = {Proceedings of the Association for Computational Linguistics (ACL)},
+    Pages = {1848--1858},
     Publisher = {ACL},
     Title = {A Trainable Spaced Repetition Model for Language Learning},
     Year = {2016}
