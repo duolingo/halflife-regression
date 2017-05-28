@@ -54,47 +54,47 @@ class SpacedRepetitionModel(object):
         self.regularization_weight = regularization_weight
         self.sigma = sigma
 
-    def halflife(self, inst, base):
+    def halflife(self, data_instance, base):
         try:
-            dp = sum(self.weights[k] * x_k for k, x_k in inst.fv)
+            dp = sum(self.weights[k] * x_k for k, x_k in data_instance.fv)
             return hclip(base ** dp)
         except:
             return MAX_HALF_LIFE_DAYS
 
-    def predict(self, inst, base=2.):
+    def predict(self, data_instance, base=2.):
         if self.method == HALF_LIFE_REGRESSION:
-            h = self.halflife(inst, base)
-            p = 2. ** (-inst.t/h)
+            h = self.halflife(data_instance, base)
+            p = 2. ** (-data_instance.t/h)
             return pclip(p), h
         elif self.method == LEITNER:
             try:
-                h = hclip(2. ** inst.fv[0][1])
+                h = hclip(2. ** data_instance.fv[0][1])
             except OverflowError:
                 h = MAX_HALF_LIFE_DAYS
-            p = 2. ** (-inst.t/h)
+            p = 2. ** (-data_instance.t/h)
             return pclip(p), h
         elif self.method == PIMSLEUR:
             try:
-                h = hclip(2. ** (2.35*inst.fv[0][1] - 16.46))
+                h = hclip(2. ** (2.35*data_instance.fv[0][1] - 16.46))
             except OverflowError:
                 h = MAX_HALF_LIFE_DAYS
-            p = 2. ** (-inst.t/h)
+            p = 2. ** (-data_instance.t/h)
             return pclip(p), h
         elif self.method == LOGISTIC_REGRESSION:
-            dp = sum(self.weights[k] * x_k for k, x_k in inst.fv)
+            dp = sum(self.weights[k] * x_k for k, x_k in data_instance.fv)
             p = 1./(1+math.exp(-dp))
             return pclip(p), random.random()
         else:
             raise Exception
 
-    def train_update(self, inst):
+    def train_update(self, data_instance):
         if self.method == HALF_LIFE_REGRESSION:
             base = 2.
-            p, h = self.predict(inst, base)
-            dlp_dw = 2.*(p-inst.p)*(LN2**2)*p*(inst.t/h)
-            dlh_dw = 2.*(h-inst.h)*LN2*h
-            for (k, x_k) in inst.fv:
-                rate = (1./(1+inst.p)) * self.learning_rate / math.sqrt(1 + self.feature_counts[k])
+            p, h = self.predict(data_instance, base)
+            dlp_dw = 2.*(p-data_instance.p)*(LN2**2)*p*(data_instance.t/h)
+            dlh_dw = 2.*(h-data_instance.h)*LN2*h
+            for (k, x_k) in data_instance.fv:
+                rate = (1./(1+data_instance.p)) * self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # sl(p) update
                 self.weights[k] -= rate * dlp_dw * x_k
@@ -108,10 +108,10 @@ class SpacedRepetitionModel(object):
         elif self.method == LEITNER or self.method == PIMSLEUR:
             pass
         elif self.method == LOGISTIC_REGRESSION:
-            p, _ = self.predict(inst)
-            err = p - inst.p
-            for (k, x_k) in inst.fv:
-                # rate = (1./(1+inst.p)) * self.learning_rate   / math.sqrt(1 + self.feature_counts[k])
+            p, _ = self.predict(data_instance)
+            err = p - data_instance.p
+            for (k, x_k) in data_instance.fv:
+                # rate = (1./(1+data_instance.p)) * self.learning_rate   / math.sqrt(1 + self.feature_counts[k])
                 rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # error update
                 self.weights[k] -= rate * err * x_k
@@ -124,21 +124,21 @@ class SpacedRepetitionModel(object):
         if self.method == LEITNER or self.method == PIMSLEUR:
             return
         random.shuffle(trainset)
-        for inst in trainset:
-            self.train_update(inst)
+        for data_instance in trainset:
+            self.train_update(data_instance)
 
-    def losses(self, inst):
-        p, h = self.predict(inst)
-        slp = (inst.p - p)**2
-        slh = (inst.h - h)**2
+    def losses(self, data_instance):
+        p, h = self.predict(data_instance)
+        slp = (data_instance.p - p)**2
+        slh = (data_instance.h - h)**2
         return slp, slh, p, h
 
     def eval(self, testset, prefix=''):
         results = {'p': [], 'h': [], 'pp': [], 'hh': [], 'slp': [], 'slh': []}
-        for inst in testset:
-            slp, slh, p, h = self.losses(inst)
-            results['p'].append(inst.p)     # ground truth
-            results['h'].append(inst.h)
+        for data_instance in testset:
+            slp, slh, p, h = self.losses(data_instance)
+            results['p'].append(data_instance.p)     # ground truth
+            results['h'].append(data_instance.h)
             results['pp'].append(p)         # predictions
             results['hh'].append(h)
             results['slp'].append(slp)      # loss function values
@@ -165,19 +165,22 @@ class SpacedRepetitionModel(object):
     def dump_predictions(self, fname, testset):
         with open(fname, 'wb') as f:
             f.write('p\tpp\th\thh\tlang\tuser_id\ttimestamp\n')
-            for inst in testset:
-                pp, hh = self.predict(inst)
-                f.write('%.4f\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\n' % (inst.p, pp, inst.h, hh, inst.lang, inst.uid, inst.ts))
+            for data_instance in testset:
+                pp, hh = self.predict(data_instance)
+                f.write('%.4f\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\n' % (data_instance.p, pp,
+                        data_instance.h, hh, data_instance.lang, data_instance.uid, data_instance.ts))
 
     def dump_detailed_predictions(self, fname, testset):
         with open(fname, 'wb') as f:
             f.write('p\tpp\th\thh\tlang\tuser_id\ttimestamp\tlexeme_tag\n')
-            for inst in testset:
-                pp, hh = self.predict(inst)
-                for i in range(inst.right):
-                    f.write('1.0\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\t%s\n' % (pp, inst.h, hh, inst.lang, inst.uid, inst.ts, inst.lexeme))
-                for i in range(inst.wrong):
-                    f.write('0.0\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\t%s\n' % (pp, inst.h, hh, inst.lang, inst.uid, inst.ts, inst.lexeme))
+            for data_instance in testset:
+                pp, hh = self.predict(data_instance)
+                for i in range(data_instance.right):
+                    f.write('1.0\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\t%s\n' % (pp, data_instance.h, hh,
+                            data_instance.lang, data_instance.uid, data_instance.ts, data_instance.lexeme))
+                for i in range(data_instance.wrong):
+                    f.write('0.0\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\t%s\n' % (pp, data_instance.h, hh,
+                            data_instance.lang, data_instance.uid, data_instance.ts, data_instance.lexeme))
 
 
 def pclip(p):
