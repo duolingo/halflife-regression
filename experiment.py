@@ -108,8 +108,6 @@ class SpacedRepetitionModel(object):
                 self.weights[feature] -= rate * self.regularization_weight * self.weights[feature] / self.sigma**2
                 # increment feature count for learning rate
                 self.feature_counts[feature] += 1
-        elif self.method == LEITNER or self.method == PIMSLEUR:
-            pass
         elif self.method == LOGISTIC_REGRESSION:
             p, _ = self.predict(data_instance)
             err = p - data_instance.p
