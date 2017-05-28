@@ -186,7 +186,8 @@ class SpacedRepetitionModel(object):
 
 def pclip(p):
     # bound min/max model predictions (helps with loss optimization)
-    return min(max(p, 0.0001), .9999)
+    epsilon = 1e-4
+    return min(max(p, epsilon), 1-epsilon)
 
 
 def hclip(h):
@@ -263,7 +264,7 @@ def read_data(input_file, method, omit_bias=False, omit_lexemes=False, max_lines
         if not omit_lexemes:
             feature_vector.append((intern('%s:%s' % (row['learning_language'], lexeme_string)), 1.))
         instances.append(Instance(p, t, feature_vector, h, (right+2.)/(seen+4.), lang, right_this, wrong_this, timestamp, user_id, lexeme_string))
-        if i % 1000000 == 0:
+        if i % 1e6 == 0:
             sys.stderr.write('%d...' % i)
     sys.stderr.write('done!\n')
     splitpoint = int(0.9 * len(instances))
