@@ -26,17 +26,24 @@ LN2 = math.log(2.)
 Instance = namedtuple('Instance', 'p t fv h a lang right wrong ts uid lexeme'.split())
 
 
+# spaced repetition approaches
+HALF_LIFE_REGRESSION = 'hlr'
+LOGISTIC_REGRESSION = 'lr'
+LEITNER = 'leitner'
+PIMSLEUR = 'pimsleur'
+
+
 class SpacedRepetitionModel(object):
     """
     Spaced repetition model.
 
     Implements the following approaches:
-      - 'hlr' (half-life regression; trainable)
-      - 'lr' (logistic regression; trainable)
-      - 'leitner' (fixed)
-      - 'pimsleur' (fixed)
+      - HALF_LIFE_REGRESSION (trainable)
+      - LOGISTIC_REGRESSION (trainable)
+      - LEITNER (fixed)
+      - PIMSLEUR (fixed)
     """
-    def __init__(self, method='hlr', omit_h_term=False, initial_weights=None, lrate=.001, hlwt=.01, l2wt=.1, sigma=1.):
+    def __init__(self, method=HALF_LIFE_REGRESSION, omit_h_term=False, initial_weights=None, lrate=.001, hlwt=.01, l2wt=.1, sigma=1.):
         self.method = method
         self.omit_h_term = omit_h_term
         self.weights = defaultdict(float)
@@ -56,25 +63,25 @@ class SpacedRepetitionModel(object):
             return MAX_HALF_LIFE_DAYS
 
     def predict(self, inst, base=2.):
-        if self.method == 'hlr':
+        if self.method == HALF_LIFE_REGRESSION:
             h = self.halflife(inst, base)
             p = 2. ** (-inst.t/h)
             return pclip(p), h
-        elif self.method == 'leitner':
+        elif self.method == LEITNER:
             try:
                 h = hclip(2. ** inst.fv[0][1])
             except OverflowError:
                 h = MAX_HALF_LIFE_DAYS
             p = 2. ** (-inst.t/h)
             return pclip(p), h
-        elif self.method == 'pimsleur':
+        elif self.method == PIMSLEUR:
             try:
                 h = hclip(2. ** (2.35*inst.fv[0][1] - 16.46))
             except OverflowError:
                 h = MAX_HALF_LIFE_DAYS
             p = 2. ** (-inst.t/h)
             return pclip(p), h
-        elif self.method == 'lr':
+        elif self.method == LOGISTIC_REGRESSION:
             dp = sum([self.weights[k]*x_k for (k, x_k) in inst.fv])
             p = 1./(1+math.exp(-dp))
             return pclip(p), random.random()
@@ -82,7 +89,7 @@ class SpacedRepetitionModel(object):
             raise Exception
 
     def train_update(self, inst):
-        if self.method == 'hlr':
+        if self.method == HALF_LIFE_REGRESSION:
             base = 2.
             p, h = self.predict(inst, base)
             dlp_dw = 2.*(p-inst.p)*(LN2**2)*p*(inst.t/h)
@@ -99,9 +106,9 @@ class SpacedRepetitionModel(object):
                 self.weights[k] -= rate * self.l2wt * self.weights[k] / self.sigma**2
                 # increment feature count for learning rate
                 self.fcounts[k] += 1
-        elif self.method == 'leitner' or self.method == 'pimsleur':
+        elif self.method == LEITNER or self.method == PIMSLEUR:
             pass
-        elif self.method == 'lr':
+        elif self.method == LOGISTIC_REGRESSION:
             p, _ = self.predict(inst)
             err = p - inst.p
             for (k, x_k) in inst.fv:
@@ -115,7 +122,7 @@ class SpacedRepetitionModel(object):
                 self.fcounts[k] += 1
 
     def train(self, trainset):
-        if self.method == 'leitner' or self.method == 'pimsleur':
+        if self.method == LEITNER or self.method == PIMSLEUR:
             return
         random.shuffle(trainset)
         for inst in trainset:
@@ -236,9 +243,9 @@ def read_data(input_file, method, omit_bias=False, omit_lexemes=False, max_lines
         # feature vector is a list of (feature, value) tuples
         fv = []
         # core features based on method
-        if method == 'leitner':
+        if method == LEITNER:
             fv.append((intern('diff'), right-wrong))
-        elif method == 'pimsleur':
+        elif method == PIMSLEUR:
             fv.append((intern('total'), right+wrong))
         else:
             # fv.append((intern('right'), right))
@@ -246,7 +253,7 @@ def read_data(input_file, method, omit_bias=False, omit_lexemes=False, max_lines
             fv.append((intern('right'), math.sqrt(1+right)))
             fv.append((intern('wrong'), math.sqrt(1+wrong)))
         # optional flag features
-        if method == 'lr':
+        if method == LOGISTIC_REGRESSION:
             fv.append((intern('time'), t))
         if not omit_bias:
             fv.append((intern('bias'), 1.))
@@ -264,7 +271,9 @@ argparser = argparse.ArgumentParser(description='Fit a SpacedRepetitionModel to 
 argparser.add_argument('-b', action='store_true', default=False, help='omit bias feature')
 argparser.add_argument('-l', action='store_true', default=False, help='omit lexeme features')
 argparser.add_argument('-t', action='store_true', default=False, help='omit half-life term')
-argparser.add_argument('-m', action='store', dest='method', default='hlr', help='hlr, lr, leitner, pimsleur')
+argparser.add_argument('-m', action='store', dest='method', default=HALF_LIFE_REGRESSION,
+                       help=' '.join([HALF_LIFE_REGRESSION, LOGISTIC_REGRESSION, LEITNER,
+                                      PIMSLEUR]))
 argparser.add_argument('-x', action='store', dest='max_lines', type=int, default=None, help='maximum number of lines to read (for dev)')
 argparser.add_argument('input_file', action='store', help='log file for training')
 
