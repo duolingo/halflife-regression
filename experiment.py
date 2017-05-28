@@ -47,7 +47,7 @@ class SpacedRepetitionModel(object):
         self.method = method
         self.omit_h_term = omit_h_term
         self.weights = defaultdict(float, {} if initial_weights is None else initial_weights)
-        self.fcounts = defaultdict(int)
+        self.feature_counts = defaultdict(int)
         self.lrate = lrate
         self.hlwt = hlwt
         self.l2wt = l2wt
@@ -93,8 +93,8 @@ class SpacedRepetitionModel(object):
             dlp_dw = 2.*(p-inst.p)*(LN2**2)*p*(inst.t/h)
             dlh_dw = 2.*(h-inst.h)*LN2*h
             for (k, x_k) in inst.fv:
-                rate = (1./(1+inst.p)) * self.lrate / math.sqrt(1 + self.fcounts[k])
-                # rate = self.lrate / math.sqrt(1 + self.fcounts[k])
+                rate = (1./(1+inst.p)) * self.lrate / math.sqrt(1 + self.feature_counts[k])
+                # rate = self.lrate / math.sqrt(1 + self.feature_counts[k])
                 # sl(p) update
                 self.weights[k] -= rate * dlp_dw * x_k
                 # sl(h) update
@@ -103,21 +103,21 @@ class SpacedRepetitionModel(object):
                 # L2 regularization update
                 self.weights[k] -= rate * self.l2wt * self.weights[k] / self.sigma**2
                 # increment feature count for learning rate
-                self.fcounts[k] += 1
+                self.feature_counts[k] += 1
         elif self.method == LEITNER or self.method == PIMSLEUR:
             pass
         elif self.method == LOGISTIC_REGRESSION:
             p, _ = self.predict(inst)
             err = p - inst.p
             for (k, x_k) in inst.fv:
-                # rate = (1./(1+inst.p)) * self.lrate   / math.sqrt(1 + self.fcounts[k])
-                rate = self.lrate / math.sqrt(1 + self.fcounts[k])
+                # rate = (1./(1+inst.p)) * self.lrate   / math.sqrt(1 + self.feature_counts[k])
+                rate = self.lrate / math.sqrt(1 + self.feature_counts[k])
                 # error update
                 self.weights[k] -= rate * err * x_k
                 # L2 regularization update
                 self.weights[k] -= rate * self.l2wt * self.weights[k] / self.sigma**2
                 # increment feature count for learning rate
-                self.fcounts[k] += 1
+                self.feature_counts[k] += 1
 
     def train(self, trainset):
         if self.method == LEITNER or self.method == PIMSLEUR:
