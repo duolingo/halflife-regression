@@ -17,8 +17,8 @@ from collections import defaultdict, namedtuple
 
 
 # various constraints on parameters and outputs
-MIN_HALF_LIFE = 15.0 / (24 * 60)    # 15 minutes
-MAX_HALF_LIFE = 274.                # 9 months
+MIN_HALF_LIFE_DAYS = 15.0 / (24 * 60)    # 15 minutes
+MAX_HALF_LIFE_DAYS = 274.                # 9 months
 LN2 = math.log(2.)
 
 
@@ -51,7 +51,7 @@ class SpacedRepetitionModel(object):
             dp = sum([self.weights[k]*x_k for (k, x_k) in inst.fv])
             return hclip(base ** dp)
         except:
-            return MAX_HALF_LIFE
+            return MAX_HALF_LIFE_DAYS
 
     def predict(self, inst, base=2.):
         if self.method == 'hlr':
@@ -62,14 +62,14 @@ class SpacedRepetitionModel(object):
             try:
                 h = hclip(2. ** inst.fv[0][1])
             except OverflowError:
-                h = MAX_HALF_LIFE
+                h = MAX_HALF_LIFE_DAYS
             p = 2. ** (-inst.t/h)
             return pclip(p), h
         elif self.method == 'pimsleur':
             try:
                 h = hclip(2. ** (2.35*inst.fv[0][1] - 16.46))
             except OverflowError:
-                h = MAX_HALF_LIFE
+                h = MAX_HALF_LIFE_DAYS
             p = 2. ** (-inst.t/h)
             return pclip(p), h
         elif self.method == 'lr':
@@ -179,7 +179,7 @@ def pclip(p):
 
 def hclip(h):
     # bound min/max half-life
-    return min(max(h, MIN_HALF_LIFE), MAX_HALF_LIFE)
+    return min(max(h, MIN_HALF_LIFE_DAYS), MAX_HALF_LIFE_DAYS)
 
 
 def mae(l1, l2):
