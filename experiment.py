@@ -259,15 +259,15 @@ def read_data(input_file, method, omit_bias=False, omit_lexemes=False, max_lines
 
 
 argparser = argparse.ArgumentParser(description='Fit a SpacedRepetitionModel to data.')
-argparser.add_argument('-b', action="store_true", default=False, help='omit bias feature')
-argparser.add_argument('-l', action="store_true", default=False, help='omit lexeme features')
-argparser.add_argument('-t', action="store_true", default=False, help='omit half-life term')
-argparser.add_argument('-m', action="store", dest="method", default='hlr', help="hlr, lr, leitner, pimsleur")
-argparser.add_argument('-x', action="store", dest="max_lines", type=int, default=None, help="maximum number of lines to read (for dev)")
-argparser.add_argument('input_file', action="store", help='log file for training')
+argparser.add_argument('-b', action='store_true', default=False, help='omit bias feature')
+argparser.add_argument('-l', action='store_true', default=False, help='omit lexeme features')
+argparser.add_argument('-t', action='store_true', default=False, help='omit half-life term')
+argparser.add_argument('-m', action='store', dest='method', default='hlr', help='hlr, lr, leitner, pimsleur')
+argparser.add_argument('-x', action='store', dest='max_lines', type=int, default=None, help='maximum number of lines to read (for dev)')
+argparser.add_argument('input_file', action='store', help='log file for training')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     args = argparser.parse_args()
 
