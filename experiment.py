@@ -56,7 +56,7 @@ class SpacedRepetitionModel(object):
 
     def halflife(self, inst, base):
         try:
-            dp = sum([self.weights[k]*x_k for (k, x_k) in inst.fv])
+            dp = sum(self.weights[k] * x_k for k, x_k in inst.fv)
             return hclip(base ** dp)
         except:
             return MAX_HALF_LIFE_DAYS
@@ -81,7 +81,7 @@ class SpacedRepetitionModel(object):
             p = 2. ** (-inst.t/h)
             return pclip(p), h
         elif self.method == LOGISTIC_REGRESSION:
-            dp = sum([self.weights[k]*x_k for (k, x_k) in inst.fv])
+            dp = sum(self.weights[k] * x_k for k, x_k in inst.fv)
             p = 1./(1+math.exp(-dp))
             return pclip(p), random.random()
         else:
@@ -149,7 +149,7 @@ class SpacedRepetitionModel(object):
         cor_h = spearmanr(results['h'], results['hh'])
         total_slp = sum(results['slp'])
         total_slh = sum(results['slh'])
-        total_l2 = sum([x**2 for x in self.weights.values()])
+        total_l2 = sum(x**2 for x in self.weights.values())
         total_loss = total_slp + self.half_life_weight*total_slh + self.regularization_weight*total_l2
         if prefix:
             sys.stderr.write('%s\t' % prefix)
