@@ -23,7 +23,7 @@ LN2 = math.log(2.)
 
 
 # data instance object
-Instance = namedtuple('Instance', 'p t fv h a lang right wrong ts uid lexeme'.split())
+Instance = namedtuple('Instance', 'p t feature_vector h a lang right wrong ts uid lexeme'.split())
 
 
 # spaced repetition approaches
@@ -56,7 +56,7 @@ class SpacedRepetitionModel(object):
 
     def halflife(self, data_instance, base):
         try:
-            dp = sum(self.weights[k] * x_k for k, x_k in data_instance.fv)
+            dp = sum(self.weights[k] * x_k for k, x_k in data_instance.feature_vector)
             return hclip(base ** dp)
         except:
             return MAX_HALF_LIFE_DAYS
@@ -68,20 +68,20 @@ class SpacedRepetitionModel(object):
             return pclip(p), h
         elif self.method == LEITNER:
             try:
-                h = hclip(2. ** data_instance.fv[0][1])
+                h = hclip(2. ** data_instance.feature_vector[0][1])
             except OverflowError:
                 h = MAX_HALF_LIFE_DAYS
             p = 2. ** (-data_instance.t/h)
             return pclip(p), h
         elif self.method == PIMSLEUR:
             try:
-                h = hclip(2. ** (2.35*data_instance.fv[0][1] - 16.46))
+                h = hclip(2. ** (2.35*data_instance.feature_vector[0][1] - 16.46))
             except OverflowError:
                 h = MAX_HALF_LIFE_DAYS
             p = 2. ** (-data_instance.t/h)
             return pclip(p), h
         elif self.method == LOGISTIC_REGRESSION:
-            dp = sum(self.weights[k] * x_k for k, x_k in data_instance.fv)
+            dp = sum(self.weights[k] * x_k for k, x_k in data_instance.feature_vector)
             p = 1./(1+math.exp(-dp))
             return pclip(p), random.random()
         else:
@@ -93,7 +93,7 @@ class SpacedRepetitionModel(object):
             p, h = self.predict(data_instance, base)
             dlp_dw = 2.*(p-data_instance.p)*(LN2**2)*p*(data_instance.t/h)
             dlh_dw = 2.*(h-data_instance.h)*LN2*h
-            for (k, x_k) in data_instance.fv:
+            for (k, x_k) in data_instance.feature_vector:
                 rate = (1./(1+data_instance.p)) * self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # sl(p) update
@@ -110,7 +110,7 @@ class SpacedRepetitionModel(object):
         elif self.method == LOGISTIC_REGRESSION:
             p, _ = self.predict(data_instance)
             err = p - data_instance.p
-            for (k, x_k) in data_instance.fv:
+            for (k, x_k) in data_instance.feature_vector:
                 # rate = (1./(1+data_instance.p)) * self.learning_rate   / math.sqrt(1 + self.feature_counts[k])
                 rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # error update
@@ -243,25 +243,25 @@ def read_data(input_file, method, omit_bias=False, omit_lexemes=False, max_lines
         right_this = int(row['session_correct'])
         wrong_this = int(row['session_seen']) - right_this
         # feature vector is a list of (feature, value) tuples
-        fv = []
+        feature_vector = []
         # core features based on method
         if method == LEITNER:
-            fv.append((intern('diff'), right-wrong))
+            feature_vector.append((intern('diff'), right-wrong))
         elif method == PIMSLEUR:
-            fv.append((intern('total'), right+wrong))
+            feature_vector.append((intern('total'), right+wrong))
         else:
-            # fv.append((intern('right'), right))
-            # fv.append((intern('wrong'), wrong))
-            fv.append((intern('right'), math.sqrt(1+right)))
-            fv.append((intern('wrong'), math.sqrt(1+wrong)))
+            # feature_vector.append((intern('right'), right))
+            # feature_vector.append((intern('wrong'), wrong))
+            feature_vector.append((intern('right'), math.sqrt(1+right)))
+            feature_vector.append((intern('wrong'), math.sqrt(1+wrong)))
         # optional flag features
         if method == LOGISTIC_REGRESSION:
-            fv.append((intern('time'), t))
+            feature_vector.append((intern('time'), t))
         if not omit_bias:
-            fv.append((intern('bias'), 1.))
+            feature_vector.append((intern('bias'), 1.))
         if not omit_lexemes:
-            fv.append((intern('%s:%s' % (row['learning_language'], lexeme_string)), 1.))
-        instances.append(Instance(p, t, fv, h, (right+2.)/(seen+4.), lang, right_this, wrong_this, timestamp, user_id, lexeme_string))
+            feature_vector.append((intern('%s:%s' % (row['learning_language'], lexeme_string)), 1.))
+        instances.append(Instance(p, t, feature_vector, h, (right+2.)/(seen+4.), lang, right_this, wrong_this, timestamp, user_id, lexeme_string))
         if i % 1000000 == 0:
             sys.stderr.write('%d...' % i)
     sys.stderr.write('done!\n')
