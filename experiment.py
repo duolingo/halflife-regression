@@ -46,9 +46,7 @@ class SpacedRepetitionModel(object):
     def __init__(self, method=HALF_LIFE_REGRESSION, omit_h_term=False, initial_weights=None, lrate=.001, hlwt=.01, l2wt=.1, sigma=1.):
         self.method = method
         self.omit_h_term = omit_h_term
-        self.weights = defaultdict(float)
-        if initial_weights is not None:
-            self.weights.update(initial_weights)
+        self.weights = defaultdict(float, {} if initial_weights is None else initial_weights)
         self.fcounts = defaultdict(int)
         self.lrate = lrate
         self.hlwt = hlwt
