@@ -57,7 +57,7 @@ class SpacedRepetitionModel(object):
     def dp(self, feature_vector):
         return sum(self.weights[feature] * value for feature, value in feature_vector)
 
-    def halflife(self, data_instance, base):
+    def half_life(self, data_instance, base):
         try:
             dp = self.dp(data_instance.feature_vector)
             return hclip(base ** dp)
@@ -66,9 +66,9 @@ class SpacedRepetitionModel(object):
 
     def predict(self, data_instance, base=2.):
         if self.method == HALF_LIFE_REGRESSION:
-            h = self.halflife(data_instance, base)
-            p = 2. ** (-data_instance.t/h)
-            return pclip(p), h
+            half_life = self.half_life(data_instance, base)
+            p = 2. ** (-data_instance.t/half_life)
+            return pclip(p), half_life
         elif self.method == LEITNER:
             try:
                 h = hclip(2. ** data_instance.feature_vector[0][1])
