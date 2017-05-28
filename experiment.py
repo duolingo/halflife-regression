@@ -54,9 +54,12 @@ class SpacedRepetitionModel(object):
         self.regularization_weight = regularization_weight
         self.sigma = sigma
 
+    def dp(self, feature_vector):
+        return sum(self.weights[feature] * value for feature, value in feature_vector)
+
     def halflife(self, data_instance, base):
         try:
-            dp = sum(self.weights[k] * x_k for k, x_k in data_instance.feature_vector)
+            dp = self.dp(data_instance.feature_vector)
             return hclip(base ** dp)
         except:
             return MAX_HALF_LIFE_DAYS
@@ -81,7 +84,7 @@ class SpacedRepetitionModel(object):
             p = 2. ** (-data_instance.t/h)
             return pclip(p), h
         elif self.method == LOGISTIC_REGRESSION:
-            dp = sum(self.weights[k] * x_k for k, x_k in data_instance.feature_vector)
+            dp = self.dp(data_instance.feature_vector)
             p = 1./(1+math.exp(-dp))
             return pclip(p), random.random()
         else:
