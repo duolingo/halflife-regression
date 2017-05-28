@@ -43,12 +43,13 @@ class SpacedRepetitionModel(object):
       - LEITNER (fixed)
       - PIMSLEUR (fixed)
     """
-    def __init__(self, method=HALF_LIFE_REGRESSION, omit_h_term=False, initial_weights=None, lrate=.001, hlwt=.01, l2wt=.1, sigma=1.):
+    def __init__(self, method=HALF_LIFE_REGRESSION, omit_h_term=False, initial_weights=None,
+                 learning_rate=.001, hlwt=.01, l2wt=.1, sigma=1.):
         self.method = method
         self.omit_h_term = omit_h_term
         self.weights = defaultdict(float, {} if initial_weights is None else initial_weights)
         self.feature_counts = defaultdict(int)
-        self.lrate = lrate
+        self.learning_rate = learning_rate
         self.hlwt = hlwt
         self.l2wt = l2wt
         self.sigma = sigma
@@ -93,8 +94,8 @@ class SpacedRepetitionModel(object):
             dlp_dw = 2.*(p-inst.p)*(LN2**2)*p*(inst.t/h)
             dlh_dw = 2.*(h-inst.h)*LN2*h
             for (k, x_k) in inst.fv:
-                rate = (1./(1+inst.p)) * self.lrate / math.sqrt(1 + self.feature_counts[k])
-                # rate = self.lrate / math.sqrt(1 + self.feature_counts[k])
+                rate = (1./(1+inst.p)) * self.learning_rate / math.sqrt(1 + self.feature_counts[k])
+                # rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # sl(p) update
                 self.weights[k] -= rate * dlp_dw * x_k
                 # sl(h) update
@@ -110,8 +111,8 @@ class SpacedRepetitionModel(object):
             p, _ = self.predict(inst)
             err = p - inst.p
             for (k, x_k) in inst.fv:
-                # rate = (1./(1+inst.p)) * self.lrate   / math.sqrt(1 + self.feature_counts[k])
-                rate = self.lrate / math.sqrt(1 + self.feature_counts[k])
+                # rate = (1./(1+inst.p)) * self.learning_rate   / math.sqrt(1 + self.feature_counts[k])
+                rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # error update
                 self.weights[k] -= rate * err * x_k
                 # L2 regularization update
