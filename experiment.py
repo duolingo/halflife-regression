@@ -93,7 +93,7 @@ class SpacedRepetitionModel(object):
             p, h = self.predict(data_instance, base)
             dlp_dw = 2.*(p-data_instance.p)*(LN2**2)*p*(data_instance.t/h)
             dlh_dw = 2.*(h-data_instance.h)*LN2*h
-            for (k, x_k) in data_instance.feature_vector:
+            for k, x_k in data_instance.feature_vector:
                 rate = (1./(1+data_instance.p)) * self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # sl(p) update
@@ -110,7 +110,7 @@ class SpacedRepetitionModel(object):
         elif self.method == LOGISTIC_REGRESSION:
             p, _ = self.predict(data_instance)
             err = p - data_instance.p
-            for (k, x_k) in data_instance.feature_vector:
+            for k, x_k in data_instance.feature_vector:
                 # rate = (1./(1+data_instance.p)) * self.learning_rate   / math.sqrt(1 + self.feature_counts[k])
                 rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
                 # error update
@@ -159,7 +159,7 @@ class SpacedRepetitionModel(object):
 
     def dump_weights(self, fname):
         with open(fname, 'wb') as f:
-            for (k, v) in self.weights.iteritems():
+            for k, v in self.weights.iteritems():
                 f.write('%s\t%.4f\n' % (k, v))
 
     def dump_predictions(self, fname, testset):
