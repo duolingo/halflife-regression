@@ -149,7 +149,7 @@ class SpacedRepetitionModel(object):
         cor_h = spearmanr(results['h'], results['hh'])
         total_slp = sum(results['slp'])
         total_slh = sum(results['slh'])
-        total_l2 = sum(x**2 for x in self.weights.values())
+        total_l2 = sum(x**2 for x in self.weights.itervalues())
         total_loss = total_slp + self.half_life_weight*total_slh + self.regularization_weight*total_l2
         if prefix:
             sys.stderr.write('%s\t' % prefix)
