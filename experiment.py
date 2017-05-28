@@ -44,14 +44,14 @@ class SpacedRepetitionModel(object):
       - PIMSLEUR (fixed)
     """
     def __init__(self, method=HALF_LIFE_REGRESSION, omit_h_term=False, initial_weights=None,
-                 learning_rate=.001, hlwt=.01, l2wt=.1, sigma=1.):
+                 learning_rate=.001, half_life_weight=.01, regularization_weight=.1, sigma=1.):
         self.method = method
         self.omit_h_term = omit_h_term
         self.weights = defaultdict(float, {} if initial_weights is None else initial_weights)
         self.feature_counts = defaultdict(int)
         self.learning_rate = learning_rate
-        self.hlwt = hlwt
-        self.l2wt = l2wt
+        self.half_life_weight = half_life_weight
+        self.regularization_weight = regularization_weight
         self.sigma = sigma
 
     def halflife(self, inst, base):
@@ -100,9 +100,9 @@ class SpacedRepetitionModel(object):
                 self.weights[k] -= rate * dlp_dw * x_k
                 # sl(h) update
                 if not self.omit_h_term:
-                    self.weights[k] -= rate * self.hlwt * dlh_dw * x_k
+                    self.weights[k] -= rate * self.half_life_weight * dlh_dw * x_k
                 # L2 regularization update
-                self.weights[k] -= rate * self.l2wt * self.weights[k] / self.sigma**2
+                self.weights[k] -= rate * self.regularization_weight * self.weights[k] / self.sigma**2
                 # increment feature count for learning rate
                 self.feature_counts[k] += 1
         elif self.method == LEITNER or self.method == PIMSLEUR:
@@ -116,7 +116,7 @@ class SpacedRepetitionModel(object):
                 # error update
                 self.weights[k] -= rate * err * x_k
                 # L2 regularization update
-                self.weights[k] -= rate * self.l2wt * self.weights[k] / self.sigma**2
+                self.weights[k] -= rate * self.regularization_weight * self.weights[k] / self.sigma**2
                 # increment feature count for learning rate
                 self.feature_counts[k] += 1
 
@@ -150,11 +150,11 @@ class SpacedRepetitionModel(object):
         total_slp = sum(results['slp'])
         total_slh = sum(results['slh'])
         total_l2 = sum([x**2 for x in self.weights.values()])
-        total_loss = total_slp + self.hlwt*total_slh + self.l2wt*total_l2
+        total_loss = total_slp + self.half_life_weight*total_slh + self.regularization_weight*total_l2
         if prefix:
             sys.stderr.write('%s\t' % prefix)
         sys.stderr.write('%.1f (p=%.1f, h=%.1f, l2=%.1f)\tmae(p)=%.3f\tcor(p)=%.3f\tmae(h)=%.3f\tcor(h)=%.3f\n' % \
-            (total_loss, total_slp, self.hlwt*total_slh, self.l2wt*total_l2, \
+            (total_loss, total_slp, self.half_life_weight*total_slh, self.regularization_weight*total_l2, \
             mae_p, cor_p, mae_h, cor_h))
 
     def dump_weights(self, fname):
