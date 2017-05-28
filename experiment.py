@@ -96,32 +96,32 @@ class SpacedRepetitionModel(object):
             p, h = self.predict(data_instance, base)
             dlp_dw = 2.*(p-data_instance.p)*(LN2**2)*p*(data_instance.t/h)
             dlh_dw = 2.*(h-data_instance.h)*LN2*h
-            for k, x_k in data_instance.feature_vector:
-                rate = (1./(1+data_instance.p)) * self.learning_rate / math.sqrt(1 + self.feature_counts[k])
-                # rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
+            for feature, value in data_instance.feature_vector:
+                rate = (1./(1+data_instance.p)) * self.learning_rate / math.sqrt(1 + self.feature_counts[feature])
+                # rate = self.learning_rate / math.sqrt(1 + self.feature_counts[feature])
                 # sl(p) update
-                self.weights[k] -= rate * dlp_dw * x_k
+                self.weights[feature] -= rate * dlp_dw * value
                 # sl(h) update
                 if not self.omit_h_term:
-                    self.weights[k] -= rate * self.half_life_weight * dlh_dw * x_k
+                    self.weights[feature] -= rate * self.half_life_weight * dlh_dw * value
                 # L2 regularization update
-                self.weights[k] -= rate * self.regularization_weight * self.weights[k] / self.sigma**2
+                self.weights[feature] -= rate * self.regularization_weight * self.weights[feature] / self.sigma**2
                 # increment feature count for learning rate
-                self.feature_counts[k] += 1
+                self.feature_counts[feature] += 1
         elif self.method == LEITNER or self.method == PIMSLEUR:
             pass
         elif self.method == LOGISTIC_REGRESSION:
             p, _ = self.predict(data_instance)
             err = p - data_instance.p
-            for k, x_k in data_instance.feature_vector:
-                # rate = (1./(1+data_instance.p)) * self.learning_rate   / math.sqrt(1 + self.feature_counts[k])
-                rate = self.learning_rate / math.sqrt(1 + self.feature_counts[k])
+            for feature, value in data_instance.feature_vector:
+                # rate = (1./(1+data_instance.p)) * self.learning_rate   / math.sqrt(1 + self.feature_counts[feature])
+                rate = self.learning_rate / math.sqrt(1 + self.feature_counts[feature])
                 # error update
-                self.weights[k] -= rate * err * x_k
+                self.weights[feature] -= rate * err * value
                 # L2 regularization update
-                self.weights[k] -= rate * self.regularization_weight * self.weights[k] / self.sigma**2
+                self.weights[feature] -= rate * self.regularization_weight * self.weights[feature] / self.sigma**2
                 # increment feature count for learning rate
-                self.feature_counts[k] += 1
+                self.feature_counts[feature] += 1
 
     def train(self, trainset):
         if self.method == LEITNER or self.method == PIMSLEUR:
@@ -162,8 +162,8 @@ class SpacedRepetitionModel(object):
 
     def dump_weights(self, fname):
         with open(fname, 'wb') as f:
-            for k, v in self.weights.iteritems():
-                f.write('%s\t%.4f\n' % (k, v))
+            for feature, value in self.weights.iteritems():
+                f.write('%s\t%.4f\n' % (feature, value))
 
     def dump_predictions(self, fname, testset):
         with open(fname, 'wb') as f:
@@ -308,7 +308,7 @@ if __name__ == '__main__':
 
     # write out model weights and predictions
     filebits = [args.method] + \
-        [k for k, v in sorted(vars(args).iteritems()) if v is True] + \
+        [feature for feature, value in sorted(vars(args).iteritems()) if value is True] + \
         [os.path.splitext(os.path.basename(args.input_file).replace('.gz', ''))[0]]
     if args.max_lines is not None:
         filebits.append(str(args.max_lines))
