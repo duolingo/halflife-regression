@@ -28,7 +28,9 @@ Instance = namedtuple('Instance', 'p t fv h a lang right wrong ts uid lexeme'.sp
 
 class SpacedRepetitionModel(object):
     """
-    Spaced repetition model. Implements the following approaches:
+    Spaced repetition model.
+
+    Implements the following approaches:
       - 'hlr' (half-life regression; trainable)
       - 'lr' (logistic regression; trainable)
       - 'leitner' (fixed)
