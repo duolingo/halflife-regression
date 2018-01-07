@@ -213,7 +213,7 @@ def read_data(input_file, method, omit_bias=False, omit_lexemes=False, max_lines
     if input_file.endswith('gz'):
         f = gzip.open(input_file, 'rb')
     else:
-        f = open(input_file, 'rb')
+        f = open(input_file, 'r')
     reader = csv.DictReader(f)
     for i, row in enumerate(reader):
         if max_lines is not None and i >= max_lines:
