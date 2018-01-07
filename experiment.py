@@ -17,120 +17,129 @@ from collections import defaultdict, namedtuple
 
 
 # various constraints on parameters and outputs
-MIN_HALF_LIFE = 15.0 / (24 * 60)    # 15 minutes
-MAX_HALF_LIFE = 274.                # 9 months
+MIN_HALF_LIFE_DAYS = 15.0 / (24 * 60)    # 15 minutes
+MAX_HALF_LIFE_DAYS = 274.                # 9 months
 LN2 = math.log(2.)
 
 
 # data instance object
-Instance = namedtuple('Instance', 'p t fv h a lang right wrong ts uid lexeme'.split())
+Instance = namedtuple('Instance', 'p t feature_vector h a lang right wrong ts uid lexeme'.split())
+
+
+# spaced repetition approaches
+HALF_LIFE_REGRESSION = 'hlr'
+LOGISTIC_REGRESSION = 'lr'
+LEITNER = 'leitner'
+PIMSLEUR = 'pimsleur'
 
 
 class SpacedRepetitionModel(object):
     """
-    Spaced repetition model. Implements the following approaches:
-      - 'hlr' (half-life regression; trainable)
-      - 'lr' (logistic regression; trainable)
-      - 'leitner' (fixed)
-      - 'pimsleur' (fixed)
+    Spaced repetition model.
+
+    Implements the following approaches:
+      - HALF_LIFE_REGRESSION (trainable)
+      - LOGISTIC_REGRESSION (trainable)
+      - LEITNER (fixed)
+      - PIMSLEUR (fixed)
     """
-    def __init__(self, method='hlr', omit_h_term=False, initial_weights=None, lrate=.001, hlwt=.01, l2wt=.1, sigma=1.):
+    def __init__(self, method=HALF_LIFE_REGRESSION, omit_h_term=False, initial_weights=None,
+                 learning_rate=.001, half_life_weight=.01, regularization_weight=.1, sigma=1.):
         self.method = method
         self.omit_h_term = omit_h_term
-        self.weights = defaultdict(float)
-        if initial_weights is not None:
-            self.weights.update(initial_weights)
-        self.fcounts = defaultdict(int)
-        self.lrate = lrate
-        self.hlwt = hlwt
-        self.l2wt = l2wt
+        self.weights = defaultdict(float, {} if initial_weights is None else initial_weights)
+        self.feature_counts = defaultdict(int)
+        self.learning_rate = learning_rate
+        self.half_life_weight = half_life_weight
+        self.regularization_weight = regularization_weight
         self.sigma = sigma
 
-    def halflife(self, inst, base):
+    def dp(self, feature_vector):
+        return sum(self.weights[feature] * value for feature, value in feature_vector)
+
+    def half_life(self, data_instance, base):
         try:
-            dp = sum([self.weights[k]*x_k for (k, x_k) in inst.fv])
+            dp = self.dp(data_instance.feature_vector)
             return hclip(base ** dp)
         except:
-            return MAX_HALF_LIFE
+            return MAX_HALF_LIFE_DAYS
 
-    def predict(self, inst, base=2.):
-        if self.method == 'hlr':
-            h = self.halflife(inst, base)
-            p = 2. ** (-inst.t/h)
-            return pclip(p), h
-        elif self.method == 'leitner':
+    def predict(self, data_instance, base=2.):
+        if self.method == HALF_LIFE_REGRESSION:
+            half_life = self.half_life(data_instance, base)
+            p = 2. ** (-data_instance.t/half_life)
+            return pclip(p), half_life
+        elif self.method == LEITNER:
             try:
-                h = hclip(2. ** inst.fv[0][1])
+                h = hclip(2. ** data_instance.feature_vector[0][1])
             except OverflowError:
-                h = MAX_HALF_LIFE
-            p = 2. ** (-inst.t/h)
+                h = MAX_HALF_LIFE_DAYS
+            p = 2. ** (-data_instance.t/h)
             return pclip(p), h
-        elif self.method == 'pimsleur':
+        elif self.method == PIMSLEUR:
             try:
-                h = hclip(2. ** (2.35*inst.fv[0][1] - 16.46))
+                h = hclip(2. ** (2.35*data_instance.feature_vector[0][1] - 16.46))
             except OverflowError:
-                h = MAX_HALF_LIFE
-            p = 2. ** (-inst.t/h)
+                h = MAX_HALF_LIFE_DAYS
+            p = 2. ** (-data_instance.t/h)
             return pclip(p), h
-        elif self.method == 'lr':
-            dp = sum([self.weights[k]*x_k for (k, x_k) in inst.fv])
+        elif self.method == LOGISTIC_REGRESSION:
+            dp = self.dp(data_instance.feature_vector)
             p = 1./(1+math.exp(-dp))
             return pclip(p), random.random()
         else:
             raise Exception
 
-    def train_update(self, inst):
-        if self.method == 'hlr':
+    def train_update(self, data_instance):
+        if self.method == HALF_LIFE_REGRESSION:
             base = 2.
-            p, h = self.predict(inst, base)
-            dlp_dw = 2.*(p-inst.p)*(LN2**2)*p*(inst.t/h)
-            dlh_dw = 2.*(h-inst.h)*LN2*h
-            for (k, x_k) in inst.fv:
-                rate = (1./(1+inst.p)) * self.lrate / math.sqrt(1 + self.fcounts[k])
-                # rate = self.lrate / math.sqrt(1 + self.fcounts[k])
+            p, h = self.predict(data_instance, base)
+            dlp_dw = 2.*(p-data_instance.p)*(LN2**2)*p*(data_instance.t/h)
+            dlh_dw = 2.*(h-data_instance.h)*LN2*h
+            for feature, value in data_instance.feature_vector:
+                rate = (1./(1+data_instance.p)) * self.learning_rate / math.sqrt(1 + self.feature_counts[feature])
+                # rate = self.learning_rate / math.sqrt(1 + self.feature_counts[feature])
                 # sl(p) update
-                self.weights[k] -= rate * dlp_dw * x_k
+                self.weights[feature] -= rate * dlp_dw * value
                 # sl(h) update
                 if not self.omit_h_term:
-                    self.weights[k] -= rate * self.hlwt * dlh_dw * x_k
+                    self.weights[feature] -= rate * self.half_life_weight * dlh_dw * value
                 # L2 regularization update
-                self.weights[k] -= rate * self.l2wt * self.weights[k] / self.sigma**2
+                self.weights[feature] -= rate * self.regularization_weight * self.weights[feature] / self.sigma**2
                 # increment feature count for learning rate
-                self.fcounts[k] += 1
-        elif self.method == 'leitner' or self.method == 'pimsleur':
-            pass
-        elif self.method == 'lr':
-            p, _ = self.predict(inst)
-            err = p - inst.p
-            for (k, x_k) in inst.fv:
-                # rate = (1./(1+inst.p)) * self.lrate   / math.sqrt(1 + self.fcounts[k])
-                rate = self.lrate / math.sqrt(1 + self.fcounts[k])
+                self.feature_counts[feature] += 1
+        elif self.method == LOGISTIC_REGRESSION:
+            p, _ = self.predict(data_instance)
+            err = p - data_instance.p
+            for feature, value in data_instance.feature_vector:
+                # rate = (1./(1+data_instance.p)) * self.learning_rate   / math.sqrt(1 + self.feature_counts[feature])
+                rate = self.learning_rate / math.sqrt(1 + self.feature_counts[feature])
                 # error update
-                self.weights[k] -= rate * err * x_k
+                self.weights[feature] -= rate * err * value
                 # L2 regularization update
-                self.weights[k] -= rate * self.l2wt * self.weights[k] / self.sigma**2
+                self.weights[feature] -= rate * self.regularization_weight * self.weights[feature] / self.sigma**2
                 # increment feature count for learning rate
-                self.fcounts[k] += 1
+                self.feature_counts[feature] += 1
 
     def train(self, trainset):
-        if self.method == 'leitner' or self.method == 'pimsleur':
+        if self.method == LEITNER or self.method == PIMSLEUR:
             return
         random.shuffle(trainset)
-        for inst in trainset:
-            self.train_update(inst)
+        for data_instance in trainset:
+            self.train_update(data_instance)
 
-    def losses(self, inst):
-        p, h = self.predict(inst)
-        slp = (inst.p - p)**2
-        slh = (inst.h - h)**2
+    def losses(self, data_instance):
+        p, h = self.predict(data_instance)
+        slp = (data_instance.p - p)**2
+        slh = (data_instance.h - h)**2
         return slp, slh, p, h
 
     def eval(self, testset, prefix=''):
         results = {'p': [], 'h': [], 'pp': [], 'hh': [], 'slp': [], 'slh': []}
-        for inst in testset:
-            slp, slh, p, h = self.losses(inst)
-            results['p'].append(inst.p)     # ground truth
-            results['h'].append(inst.h)
+        for data_instance in testset:
+            slp, slh, p, h = self.losses(data_instance)
+            results['p'].append(data_instance.p)     # ground truth
+            results['h'].append(data_instance.h)
             results['pp'].append(p)         # predictions
             results['hh'].append(h)
             results['slp'].append(slp)      # loss function values
@@ -141,45 +150,49 @@ class SpacedRepetitionModel(object):
         cor_h = spearmanr(results['h'], results['hh'])
         total_slp = sum(results['slp'])
         total_slh = sum(results['slh'])
-        total_l2 = sum([x**2 for x in self.weights.values()])
-        total_loss = total_slp + self.hlwt*total_slh + self.l2wt*total_l2
+        total_l2 = sum(x**2 for x in self.weights.itervalues())
+        total_loss = total_slp + self.half_life_weight*total_slh + self.regularization_weight*total_l2
         if prefix:
             sys.stderr.write('%s\t' % prefix)
         sys.stderr.write('%.1f (p=%.1f, h=%.1f, l2=%.1f)\tmae(p)=%.3f\tcor(p)=%.3f\tmae(h)=%.3f\tcor(h)=%.3f\n' % \
-            (total_loss, total_slp, self.hlwt*total_slh, self.l2wt*total_l2, \
+            (total_loss, total_slp, self.half_life_weight*total_slh, self.regularization_weight*total_l2, \
             mae_p, cor_p, mae_h, cor_h))
 
     def dump_weights(self, fname):
         with open(fname, 'wb') as f:
-            for (k, v) in self.weights.iteritems():
-                f.write('%s\t%.4f\n' % (k, v))
+            for feature, value in self.weights.iteritems():
+                f.write('%s\t%.4f\n' % (feature, value))
 
     def dump_predictions(self, fname, testset):
         with open(fname, 'wb') as f:
             f.write('p\tpp\th\thh\tlang\tuser_id\ttimestamp\n')
-            for inst in testset:
-                pp, hh = self.predict(inst)
-                f.write('%.4f\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\n' % (inst.p, pp, inst.h, hh, inst.lang, inst.uid, inst.ts))
+            for data_instance in testset:
+                pp, hh = self.predict(data_instance)
+                f.write('%.4f\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\n' % (data_instance.p, pp,
+                        data_instance.h, hh, data_instance.lang, data_instance.uid, data_instance.ts))
 
     def dump_detailed_predictions(self, fname, testset):
         with open(fname, 'wb') as f:
             f.write('p\tpp\th\thh\tlang\tuser_id\ttimestamp\tlexeme_tag\n')
-            for inst in testset:
-                pp, hh = self.predict(inst)
-                for i in range(inst.right):
-                    f.write('1.0\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\t%s\n' % (pp, inst.h, hh, inst.lang, inst.uid, inst.ts, inst.lexeme))
-                for i in range(inst.wrong):
-                    f.write('0.0\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\t%s\n' % (pp, inst.h, hh, inst.lang, inst.uid, inst.ts, inst.lexeme))
+            for data_instance in testset:
+                pp, hh = self.predict(data_instance)
+                for i in range(data_instance.right):
+                    f.write('1.0\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\t%s\n' % (pp, data_instance.h, hh,
+                            data_instance.lang, data_instance.uid, data_instance.ts, data_instance.lexeme))
+                for i in range(data_instance.wrong):
+                    f.write('0.0\t%.4f\t%.4f\t%.4f\t%s\t%s\t%d\t%s\n' % (pp, data_instance.h, hh,
+                            data_instance.lang, data_instance.uid, data_instance.ts, data_instance.lexeme))
 
 
 def pclip(p):
     # bound min/max model predictions (helps with loss optimization)
-    return min(max(p, 0.0001), .9999)
+    epsilon = 1e-4
+    return min(max(p, epsilon), 1-epsilon)
 
 
 def hclip(h):
     # bound min/max half-life
-    return min(max(h, MIN_HALF_LIFE), MAX_HALF_LIFE)
+    return min(max(h, MIN_HALF_LIFE_DAYS), MAX_HALF_LIFE_DAYS)
 
 
 def mae(l1, l2):
@@ -232,26 +245,26 @@ def read_data(input_file, method, omit_bias=False, omit_lexemes=False, max_lines
         right_this = int(row['session_correct'])
         wrong_this = int(row['session_seen']) - right_this
         # feature vector is a list of (feature, value) tuples
-        fv = []
+        feature_vector = []
         # core features based on method
-        if method == 'leitner':
-            fv.append((intern('diff'), right-wrong))
-        elif method == 'pimsleur':
-            fv.append((intern('total'), right+wrong))
+        if method == LEITNER:
+            feature_vector.append((intern('diff'), right-wrong))
+        elif method == PIMSLEUR:
+            feature_vector.append((intern('total'), right+wrong))
         else:
-            # fv.append((intern('right'), right))
-            # fv.append((intern('wrong'), wrong))
-            fv.append((intern('right'), math.sqrt(1+right)))
-            fv.append((intern('wrong'), math.sqrt(1+wrong)))
+            # feature_vector.append((intern('right'), right))
+            # feature_vector.append((intern('wrong'), wrong))
+            feature_vector.append((intern('right'), math.sqrt(1+right)))
+            feature_vector.append((intern('wrong'), math.sqrt(1+wrong)))
         # optional flag features
-        if method == 'lr':
-            fv.append((intern('time'), t))
+        if method == LOGISTIC_REGRESSION:
+            feature_vector.append((intern('time'), t))
         if not omit_bias:
-            fv.append((intern('bias'), 1.))
+            feature_vector.append((intern('bias'), 1.))
         if not omit_lexemes:
-            fv.append((intern('%s:%s' % (row['learning_language'], lexeme_string)), 1.))
-        instances.append(Instance(p, t, fv, h, (right+2.)/(seen+4.), lang, right_this, wrong_this, timestamp, user_id, lexeme_string))
-        if i % 1000000 == 0:
+            feature_vector.append((intern('%s:%s' % (row['learning_language'], lexeme_string)), 1.))
+        instances.append(Instance(p, t, feature_vector, h, (right+2.)/(seen+4.), lang, right_this, wrong_this, timestamp, user_id, lexeme_string))
+        if i % 1e6 == 0:
             sys.stderr.write('%d...' % i)
     sys.stderr.write('done!\n')
     splitpoint = int(0.9 * len(instances))
@@ -259,15 +272,17 @@ def read_data(input_file, method, omit_bias=False, omit_lexemes=False, max_lines
 
 
 argparser = argparse.ArgumentParser(description='Fit a SpacedRepetitionModel to data.')
-argparser.add_argument('-b', action="store_true", default=False, help='omit bias feature')
-argparser.add_argument('-l', action="store_true", default=False, help='omit lexeme features')
-argparser.add_argument('-t', action="store_true", default=False, help='omit half-life term')
-argparser.add_argument('-m', action="store", dest="method", default='hlr', help="hlr, lr, leitner, pimsleur")
-argparser.add_argument('-x', action="store", dest="max_lines", type=int, default=None, help="maximum number of lines to read (for dev)")
-argparser.add_argument('input_file', action="store", help='log file for training')
+argparser.add_argument('-b', action='store_true', default=False, help='omit bias feature')
+argparser.add_argument('-l', action='store_true', default=False, help='omit lexeme features')
+argparser.add_argument('-t', action='store_true', default=False, help='omit half-life term')
+argparser.add_argument('-m', action='store', dest='method', default=HALF_LIFE_REGRESSION,
+                       help=' '.join([HALF_LIFE_REGRESSION, LOGISTIC_REGRESSION, LEITNER,
+                                      PIMSLEUR]))
+argparser.add_argument('-x', action='store', dest='max_lines', type=int, default=None, help='maximum number of lines to read (for dev)')
+argparser.add_argument('input_file', action='store', help='log file for training')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     args = argparser.parse_args()
 
@@ -292,7 +307,7 @@ if __name__ == "__main__":
 
     # write out model weights and predictions
     filebits = [args.method] + \
-        [k for k, v in sorted(vars(args).iteritems()) if v is True] + \
+        [feature for feature, value in sorted(vars(args).iteritems()) if value is True] + \
         [os.path.splitext(os.path.basename(args.input_file).replace('.gz', ''))[0]]
     if args.max_lines is not None:
         filebits.append(str(args.max_lines))
