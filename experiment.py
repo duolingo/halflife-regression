@@ -34,7 +34,7 @@ class SpacedRepetitionModel(object):
       - 'leitner' (fixed)
       - 'pimsleur' (fixed)
     """
-    def __init__(self, method='hlr', omit_h_term=False, initial_weights=None, lrate=.001, hlwt=.01, l2wt=.1, sigma=1.):
+    def __init__(self, method='hlr', omit_h_term=False, initial_weights=None, lrate=.001, hl_weight=.01, l2wt=.1, sigma=1.):
         self.method = method
         self.omit_h_term = omit_h_term
         self.weights = defaultdict(float)
@@ -42,7 +42,7 @@ class SpacedRepetitionModel(object):
             self.weights.update(initial_weights)
         self.fcounts = defaultdict(int)
         self.lrate = lrate
-        self.hlwt = hlwt
+        self.hl_weight = hl_weight
         self.l2wt = l2wt
         self.sigma = sigma
 
@@ -83,16 +83,16 @@ class SpacedRepetitionModel(object):
         if self.method == 'hlr':
             base = 2.
             p, h = self.predict(inst, base)
-            dlp_dw = 2.*(p-inst.p)*(LN2**2)*p*(inst.t/h)
-            dlh_dw = 2.*(h-inst.h)*LN2*h
+            prob_loss_deriv_weight = 2.*(p-inst.p)*(LN2**2)*p*(inst.t/h)
+            half_life_loss_deriv_weight = 2.*(h-inst.h)*LN2*h
             for (k, x_k) in inst.fv:
                 rate = (1./(1+inst.p)) * self.lrate / math.sqrt(1 + self.fcounts[k])
                 # rate = self.lrate / math.sqrt(1 + self.fcounts[k])
                 # sl(p) update
-                self.weights[k] -= rate * dlp_dw * x_k
+                self.weights[k] -= rate * prob_loss_deriv_weight * x_k
                 # sl(h) update
                 if not self.omit_h_term:
-                    self.weights[k] -= rate * self.hlwt * dlh_dw * x_k
+                    self.weights[k] -= rate * self.hl_weight * half_life_loss_deriv_weight * x_k
                 # L2 regularization update
                 self.weights[k] -= rate * self.l2wt * self.weights[k] / self.sigma**2
                 # increment feature count for learning rate
@@ -121,32 +121,32 @@ class SpacedRepetitionModel(object):
 
     def losses(self, inst):
         p, h = self.predict(inst)
-        slp = (inst.p - p)**2
-        slh = (inst.h - h)**2
-        return slp, slh, p, h
+        prob_loss = (inst.p - p)**2
+        half_life_loss = (inst.h - h)**2
+        return prob_loss, half_life_loss, p, h
 
     def eval(self, testset, prefix=''):
-        results = {'p': [], 'h': [], 'pp': [], 'hh': [], 'slp': [], 'slh': []}
+        results = {'p': [], 'h': [], 'pp': [], 'hh': [], 'prob_loss': [], 'half_life_loss': []}
         for inst in testset:
-            slp, slh, p, h = self.losses(inst)
+            prob_loss, half_life_loss, p, h = self.losses(inst)
             results['p'].append(inst.p)     # ground truth
             results['h'].append(inst.h)
             results['pp'].append(p)         # predictions
             results['hh'].append(h)
-            results['slp'].append(slp)      # loss function values
-            results['slh'].append(slh)
+            results['prob_loss'].append(prob_loss)      # loss function values
+            results['half_life_loss'].append(half_life_loss)
         mae_p = mae(results['p'], results['pp'])
         mae_h = mae(results['h'], results['hh'])
         cor_p = spearmanr(results['p'], results['pp'])
         cor_h = spearmanr(results['h'], results['hh'])
-        total_slp = sum(results['slp'])
-        total_slh = sum(results['slh'])
+        total_prob_loss = sum(results['prob_loss'])
+        total_half_life_loss = sum(results['half_life_loss'])
         total_l2 = sum([x**2 for x in self.weights.values()])
-        total_loss = total_slp + self.hlwt*total_slh + self.l2wt*total_l2
+        total_loss = total_prob_loss + self.hl_weight*total_half_life_loss + self.l2wt*total_l2
         if prefix:
             sys.stderr.write('%s\t' % prefix)
         sys.stderr.write('%.1f (p=%.1f, h=%.1f, l2=%.1f)\tmae(p)=%.3f\tcor(p)=%.3f\tmae(h)=%.3f\tcor(h)=%.3f\n' % \
-            (total_loss, total_slp, self.hlwt*total_slh, self.l2wt*total_l2, \
+            (total_loss, total_prob_loss, self.hl_weight*total_half_life_loss, self.l2wt*total_l2, \
             mae_p, cor_p, mae_h, cor_h))
 
     def dump_weights(self, fname):
