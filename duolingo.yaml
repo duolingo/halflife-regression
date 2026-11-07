@@ -1,0 +1,8 @@
+schema_version: 1
+owner:
+  team: "a4169c9b10821000feb0077c34de0000" # Language Learning - Efficacy Research Lab
+technology-type: [internal-tool]
+lifecycle:
+  state: production
+  context: ""
+compliance: []
