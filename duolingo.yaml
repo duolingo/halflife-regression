@@ -1,7 +1,7 @@
 schema_version: 1
 owner:
   team: "a4169c9b10821000feb0077c34de0000" # Language Learning - Efficacy Research Lab
-technology-type: [scripts]
+technology-type: [scripts, internal-tool]
 lifecycle:
   state: frozen
   context: "Published 2016 research code (half-life regression); no human commits since 2017. Kept for reference only."
